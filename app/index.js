@@ -5,7 +5,7 @@ import cors from 'cors';
 import { NodejsClient } from 'contensis-management-api/lib/client/nodejs-client.js';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import {} from 'dotenv/config';
+//import {} from 'dotenv/config';
 
 // Set some variables.
 const CT = 'electionresults';
