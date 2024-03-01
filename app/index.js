@@ -13,7 +13,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const dir = path.join(__dirname, '../public');
 const port = 3001;
 const ROOT_URL = `https://cms-chesheast.cloud.contensis.com/`;
-const PROJECT = process.env.projectId;
+const PROJECT = 'website';
 const client = NodejsClient.create({
   clientType: 'client_credentials',
   clientDetails: {
