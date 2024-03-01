@@ -1,0 +1,463 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link
+      href="https://www.cheshireeast.gov.uk/siteelements/css/bs5/100-bootstrap.min.css"
+      rel="stylesheet"
+      type="text/css"
+    />
+    <link
+      href="https://www.cheshireeast.gov.uk/siteelements/css/bs5/400-cec-styles.css"
+      rel="stylesheet"
+      type="text/css"
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700"
+      rel="stylesheet"
+    />
+    <title>Election data uploader</title>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+    <style>
+      .access-acc-container {
+        margin-bottom: 1rem;
+      }
+      label.access-acc-container {
+        margin-top: 0.5rem;
+      }
+      #file {
+        color: transparent;
+      }
+      #drop-zone {
+        padding: 0.3rem;
+        border: solid 1px Black;
+        border-radius: 10px;
+        height: 100px;
+        width: 300px;
+        background-color: #ecffdc;
+      }
+      .wheat {
+        background-color: Wheat;
+        border: 1px solid Black;
+        border-radius: 12px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="my-3 container">
+      <h1>Election data uploader</h1>
+      <div id="app" class="mt-4">
+        <div>
+          <div>
+            <input
+              type="text"
+              id="pwd"
+              v-model="pwd"
+              placeholder="Enter password"
+              @focus="()=> pwd=''"
+              v-on:keyup.enter="click()"
+            />
+            <button
+              id="loadBtn"
+              class="ms-2"
+              @click="getEntries(pwd)"
+              type="button"
+            >
+              Load data
+            </button>
+            <p class="mt-2 mb-0">{{login}}</p>
+          </div>
+
+          <div class="mt-3">
+            <div v-show="loggingIn" class="spinner-border" role="status">
+              <span class="sr-only">Loading...</span>
+            </div>
+            <div v-show="loggedIn">
+              <h2 class="fs-4">Elections with results on the system</h2>
+              <div class="col-lg-8">
+                <section class="access-acc-container">
+                  <template v-for="(item, i) in items">
+                    <input :id="item.sys.id" type="checkbox" />
+                    <label :for="item.sys.id"
+                      >{{ item.title.slice(item.title.length - 10) }}</label
+                    >
+                    <article>
+                      <ul>
+                        <li>
+                          {{item.electionCandidate.length}} candidate<span
+                            v-if="item.electionCandidate.length !== 1"
+                            >s</span
+                          >
+                        </li>
+                        <li>
+                          {{item.electionWard.length}} ward<span
+                            v-if="item.electionWard.length !== 1"
+                            >s</span
+                          >
+                        </li>
+                        <li>
+                          {{item.electionParty.length}} part<span
+                            v-if="item.electionParty.length !== 1"
+                            >ies</span
+                          ><span v-else>y</span>
+                        </li>
+                        <li>
+                          {{item.votes}} vote<span v-if="item.votes !== 1"
+                            >s</span
+                          >
+                        </li>
+                        <li>
+                          {{item.seats}} seat<span v-if="item.seats !== 1"
+                            >s</span
+                          >
+                          declared
+                        </li>
+                      </ul>
+                    </article>
+                  </template>
+                </section>
+              </div>
+              <div>
+                <h2 class="fs-4">Upload</h2>
+                <label class="d-block" for="dateInput"
+                  >Date of election:
+                </label>
+                <input
+                  id="dateInput"
+                  @change="checkDate"
+                  type="date"
+                  v-model="date"
+                />
+                <div class="mt-3" v-show="error">
+                  <p class="mb-0">Something went wrong.</p>
+
+                  <p>
+                    Try again or contact
+                    <a href="mailto:webteam2@cheshireeast.gov.uk">webteam</a>.
+                  </p>
+                </div>
+                <p class="mt-3" v-html="dateMsg"></p>
+                <div v-show="this.date.length">
+                  <p>
+                    File must be in .xlsx format and based on the correct
+                    template.
+                  </p>
+                  <input
+                    id="file"
+                    type="file"
+                    accept=".xlsx"
+                    @change="readFile"
+                  />
+                  <div class="mt-3" id="drop-zone">
+                    <p>Or drag file in here</p>
+                    <p class="mt-2" v-html="msg"></p>
+                  </div>
+                  <div v-if="sheets.length" class="mt-3 row">
+                    <div class="col-lg-6">
+                      <div class="p-2 wheat">
+                        <p><strong>Summary</strong></p>
+                        <ul>
+                          <li>
+                            {{candidates.length}} candidate<span
+                              v-if="candidates.length !== 1"
+                              >s</span
+                            >
+                          </li>
+                          <li>
+                            {{wards.length}} ward<span v-if="wards.length !== 1"
+                              >s</span
+                            >
+                          </li>
+                          <li>
+                            {{parties.length}} part<span
+                              v-if="parties.length !== 1"
+                              >ies</span
+                            ><span v-else>y</span>
+                          </li>
+                          <li>
+                            {{votes}} vote<span v-if="votes !== 1">s</span>
+                          </li>
+                          <li>
+                            {{seatsDeclared}} seat<span v-if="seats !== 1"
+                              >s</span
+                            >
+                            declared
+                          </li>
+                        </ul>
+                      </div>
+                    </div>
+                    <div class="col-lg-6">
+                      <div
+                        v-if="!candidates.length && !wards.length && !parties.length"
+                      >
+                        <p>I can't find the data I need in your file.</p>
+                        <p>
+                          Please contact
+                          <a href="mailto:webteam2@cheshireeast.gov.uk"
+                            >webteam</a
+                          >.
+                        </p>
+                      </div>
+                      <div v-else>
+                        <div v-if="update">
+                          <p class="text-danger">
+                            Submitting this file will over-write all data for
+                            this election.
+                          </p>
+                          <p>
+                            To make minor changes to the data, edit via
+                            <a :href="entryUrl()">Contensis</a>.
+                          </p>
+                        </div>
+                        <button
+                          class="d-block my-2"
+                          @click="sendData()"
+                          type="button"
+                        >
+                          <span v-if="update">Update </span>
+                          <span v-else>Create new record</span>
+                        </button>
+                        <div
+                          v-show="loading"
+                          class="ms-3 spinner-border"
+                          role="status"
+                        >
+                          <span class="sr-only">Loading...</span>
+                        </div>
+                        <div class="mt-3" v-show="error">
+                          <p class="mb-0 text-danger">Something went wrong.</p>
+                          <p>
+                            Try again or contact
+                            <a href="mailto:webteam2@cheshireeast.gov.uk"
+                              >webteam</a
+                            >.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script
+      lang="javascript"
+      src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"
+    ></script>
+    <script>
+      const { createApp } = Vue;
+      const app = createApp({
+        data() {
+          const access = 'QCpZfwnsgnQsyHHB3ID5isS43cZnthj6YoSPtemxFGtcH15I';
+          return {
+            btn: undefined,
+            items: [],
+            loading: false,
+            loggingIn: false,
+            login: 'Not logged in.',
+            loggedIn: false,
+            status: '',
+            pwd: '',
+            dateMsg: '&nbsp;',
+            msg: '',
+            sheets: [],
+            date: '',
+            dateObj: undefined,
+            results: [],
+            update: undefined,
+            votes: 0,
+            seatsDeclared: 0,
+            candidates: [],
+            parties: [],
+            wards: [],
+            updateId: '',
+            error: false,
+            toSend: {},
+          };
+        },
+        methods: {
+          entryUrl: function () {
+            return `https://cms-chesheast.cloud.contensis.com/app/projects/website/entries/${this.toSend.update.sys.id}`;
+          },
+          checkDate: function () {
+            this.error = false;
+            this.dateObj = new Date(this.date);
+            this.update = this.items.find(
+              (i) => i.date === this.dateObj.toLocaleDateString('en-GB'),
+            );
+            this.dateMsg = this.update
+              ? 'An entry exists for this election, it will be updated with the data you upload.'
+              : 'A new entry will be created from your data.';
+          },
+          readFile: function (e) {
+            let file = e.target.files[0];
+            this.read(file);
+          },
+          read: function (f) {
+            this.msg = '&nbsp;';
+            this.status = '&nbsp';
+            const reader = new FileReader();
+            reader.onload = (e) => {
+              this.process(e);
+            };
+            reader.readAsBinaryString(f);
+            this.fileName = f.name;
+          },
+          process: function (f) {
+            const data = f.target.result;
+            const workbook = XLSX.read(data, { type: 'binary' });
+            this.sheets = workbook.SheetNames;
+            results = this.sheets.reduce((acc, s) => {
+              return [...acc, ...XLSX.utils.sheet_to_json(workbook.Sheets[s])];
+            }, []);
+            this.candidates = results.filter((obj) => obj.CandidateName);
+            this.parties = results.filter((obj) => obj.PartyHexColour);
+            this.wards = results.filter((obj) => obj.Candidates);
+            this.votes = this.candidates.reduce((acc, obj) => {
+              return obj.Votes ? acc + obj.Votes : acc;
+            }, 0);
+            this.seatsDeclared = this.candidates.reduce((acc, obj) => {
+              return obj.WonSeat && obj.WonSeat ? acc + 1 : acc;
+            }, 0);
+            this.toSend = {
+              pwd: this.pwd,
+              date: this.dateObj,
+              action: this.update ? 'update' : 'create',
+              update: this.update,
+              cands: this.candidates,
+              parties: this.parties,
+              wards: this.wards,
+            };
+            this.msg = this.fileName;
+          },
+          clearLocal: function () {
+            this.date = '';
+            this.sheets = [];
+            this.votes = 0;
+            this.candidate = [];
+            this.parties = [];
+            this.wards = [];
+            this.dateMsg = '&nbsp;';
+          },
+          sendData: function () {
+            this.loading = true;
+            //fetch('https://www.cheshireeast.gov.uk/cec-api/electionupload', {
+            fetch('/', {
+              method: 'post',
+              body: JSON.stringify(this.toSend),
+              headers: {
+                'Content-Type': 'application/json; charset=utf-8',
+              },
+            })
+              .then((response) => {
+                if (response.status === 200) {
+                  return response.json();
+                } else {
+                  throw 'Something went wrong.';
+                }
+              })
+              .then((data) => {
+                let newItem = this.setUp(data);
+                let item = this.items.find((i) => i.sys.id === data.sys.id);
+                if (item) {
+                  this.items[this.items.indexOf(item)] = newItem; 
+                } else {
+                  this.items.push(newItem);
+                }
+                this.$nextTick(() => {
+                  let acc = document.getElementById(data.sys.id);
+                  acc.scrollIntoView();
+                  acc.checked = true;
+                  this.clearLocal();
+                });
+              })
+              .catch((err) => {
+                this.msg = 'Something went wrong.';
+                console.log(err);
+                this.loading = false;
+                this.error = true;
+                this.clearLocal();
+              })
+              .finally(() => {
+                this.loading = false;
+              });
+          },
+          drop: function (evt) {
+            evt.stopPropagation();
+            evt.preventDefault();
+            let f = evt.dataTransfer.files[0];
+            if (f.name.slice(f.name.length - 5) !== '.xlsx') {
+              this.msg = 'Invalid file.';
+              return;
+            }
+            this.read(f);
+          },
+          dragOver: function (evt) {
+            evt.stopPropagation();
+            evt.preventDefault();
+            evt.dataTransfer.dropEffect = 'copy';
+          },
+          click: function () {
+            this.btn.focus();
+            this.btn.click();
+          },
+          getEntries: function (pwd) {
+            this.login = 'Contacting server.';
+            this.loggingIn = true;
+            this.loggedIn = false;
+            //fetch('/cec-api/entry-maker/?id=${pwd}')
+            fetch('/', {
+              method: 'post',
+              body: JSON.stringify({ action: 'login', pwd: this.pwd }),
+              headers: {
+                'Content-Type': 'application/json; charset=utf-8',
+              },
+            })
+              .then((response) => {
+                if (!response.ok) {
+                  throw 'Invalid password';
+                }
+                return response.json();
+              })
+              .then((data) => {
+                this.items = data.items;
+                this.items = this.items.map((item) => this.setUp(item));
+                this.login = 'Logged in.';
+                this.loggedIn = true;
+              })
+              .catch((error) => {
+                console.log(error);
+                this.loggingIn = false;
+                this.login = 'Invalid password.';
+              })
+              .finally(() => {
+                this.loggingIn = false;
+              });
+          },
+          setUp: function (item) {
+            item.date = new Date(item.date).toLocaleDateString('en-GB');
+            item.seats = item.electionCandidate.filter((c) => c.wonSeat).length;
+            item.votes = item.electionCandidate.reduce((acc, c) => {
+              return acc + c.votes;
+            }, 0);
+            return item;
+          },
+        },
+        mounted() {
+          this.btn = document.getElementById('loadBtn');
+          let dropZone = document.getElementById('drop-zone');
+          dropZone.addEventListener('dragover', this.dragOver, false);
+          dropZone.addEventListener('drop', this.drop, false);
+        },
+      }).mount('#app');
+    </script>
+
+    <script src="https://www.cheshireeast.gov.uk/SiteElements/js/bs5/bootstrap.bundle.min.js"></script>
+  </body>
+</html>
